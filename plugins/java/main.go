@@ -38,7 +38,11 @@ func main() {
 	if cfg.Verbose {
 		fmt.Println("Creating " + caFile)
 	}
-	p.RunTrust(caFile, "java-cacerts")
+	code, err := p.RunTrust(caFile, "java-cacerts")
+	if err != nil {
+		fmt.Println("ERROR: Cannot extract java cacerts: " + string(err.Error()))
+		os.Exit(code)
+	}
 	// now move the generated file to the correct location and name
 	err = os.Rename(caFile+".new", caFile)
 	if err != nil {
