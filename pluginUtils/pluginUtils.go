@@ -6,7 +6,6 @@ import (
 	"log/syslog"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"time"
 
@@ -96,7 +95,7 @@ func (p PluginUtils) IsSymLink(f string) bool {
 }
 
 func (p PluginUtils) ConfigureEtcSslCaBundlePem(f string) error {
-	baseDir := path.Base(f)
+	baseDir := filepath.Dir(f)
 
 	e, err := p.FileExists(f)
 	if err != nil {
@@ -105,7 +104,7 @@ func (p PluginUtils) ConfigureEtcSslCaBundlePem(f string) error {
 	}
 
 	if !e {
-		err := os.Mkdir(baseDir, 0755)
+		err := os.MkdirAll(baseDir, 0755)
 		if err != nil {
 			return err
 		}
