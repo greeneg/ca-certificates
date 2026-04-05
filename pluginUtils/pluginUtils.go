@@ -215,17 +215,18 @@ func (p PluginUtils) FindPlugins(c configuration.Configuration, s *syslog.Writer
 }
 
 func (p PluginUtils) RunPlugins(plugins []string, c configuration.Configuration, s *syslog.Writer) error {
+	// convert c to json once and pass it to each plugin via stdin
+	jsonStr, err := c.ToJson(c)
+	if err != nil {
+		fmt.Println(fmt.Errorf("ERROR: %w", err))
+		if c.UseSyslog {
+			s.Err("E: " + string(err.Error()))
+		}
+		return err
+	}
+
 	for _, plugin := range plugins {
 		fmt.Printf("plugin: %s", plugin)
-		// convert c to json and pass it to the plugin via stdin
-		jsonStr, err := c.ToJson(c)
-		if err != nil {
-			fmt.Println(fmt.Errorf("ERROR: %w", err))
-			if c.UseSyslog {
-				s.Err("E: " + string(err.Error()))
-			}
-			continue
-		}
 		cmd := exec.Command(plugin)
 		cmd.Stdin = strings.NewReader(jsonStr)
 		output, err := cmd.CombinedOutput()
