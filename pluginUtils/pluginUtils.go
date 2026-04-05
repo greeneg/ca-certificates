@@ -232,19 +232,20 @@ func (p PluginUtils) RunPlugins(plugins []string, c configuration.Configuration,
 		fmt.Printf("plugin: %s\n", plugin)
 		cmd := exec.Command(plugin)
 		cmd.Stdin = strings.NewReader(jsonStr)
-		output, err := cmd.CombinedOutput()
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		err := cmd.Run()
 		if err != nil {
 			exitCode := 1
 			if cmd.ProcessState != nil {
 				exitCode = cmd.ProcessState.ExitCode()
 			}
-			fmt.Printf("ERROR: Could not run plugin %s: %v. Output: %s. Exit code: %d\n", plugin, err, string(output), exitCode)
+			fmt.Printf("ERROR: Could not run plugin %s: %v. Exit code: %d\n", plugin, err, exitCode)
 			if c.UseSyslog && s != nil {
-				s.Err("E: Could not run plugin " + plugin + ": " + string(err.Error()) + ". Output: " + string(output) + ". Exit code: " + fmt.Sprintf("%d", exitCode))
+				s.Err("E: Could not run plugin " + plugin + ": " + string(err.Error()) + ". Exit code: " + fmt.Sprintf("%d", exitCode))
 			}
 			continue
 		}
-		fmt.Printf("Output from plugin %s: %s", plugin, string(output))
 	}
 }
 
