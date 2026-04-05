@@ -1,4 +1,4 @@
-module github.com/greeneg/cmd/update-ca-certificates
+module github.com/greeneg/ca-certificates/cmd/update-ca-certificates
 
 go 1.26.1
 
