@@ -1,4 +1,4 @@
-package certbundle
+package main
 
 import (
 	"bufio"
