@@ -165,7 +165,7 @@ func (p PluginUtils) FindPlugins(c configuration.Configuration, s *syslog.Writer
 	var plugins []string
 
 	for _, p := range c.HooksDirList {
-		dir := c.DestDir + p
+		dir := filepath.Join(c.DestDir, p)
 		err := os.Chdir(dir)
 		if err != nil {
 			if dir == "/etc/ca-certificates/update.d" {
