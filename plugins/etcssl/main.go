@@ -1,4 +1,4 @@
-package etcssl
+package main
 
 import (
 	"bufio"
