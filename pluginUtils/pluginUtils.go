@@ -212,7 +212,7 @@ func (p PluginUtils) FindPlugins(c configuration.Configuration, s *syslog.Writer
 }
 
 func (p PluginUtils) RunPlugins(plugins []string, c configuration.Configuration) error {
-	for _, plugin := range p {
+	for _, plugin := range plugins {
 		fmt.Printf("plugin: %s", plugin)
 	}
 	return nil
