@@ -169,24 +169,18 @@ func (p PluginUtils) FindPlugins(c configuration.Configuration, s *syslog.Writer
 
 	for _, p := range c.HooksDirList {
 		dir := filepath.Join(c.DestDir, p)
-		err := os.Chdir(dir)
+		_, err := os.Stat(dir)
 		if err != nil {
-			if dir == "/etc/ca-certificates/update.d" {
-				if errors.Is(err, os.ErrNotExist) {
-					// we can effectively skip this case as
-					// the /etc/ca-certificates/update.d is
-					// an override location
-					fmt.Printf("Location %s does not exist\n", dir)
-					if c.UseSyslog {
-						s.Notice("N: Location /etc/ca-certificates/update.d does not exist. Skipping")
-					}
-					continue
+			if errors.Is(err, os.ErrNotExist) {
+				fmt.Printf("Location %s does not exist\n", dir)
+				if c.UseSyslog {
+					s.Notice("N: Location " + dir + " does not exist. Skipping")
 				}
+				continue
 			}
 			fmt.Println(fmt.Errorf("ERROR: %w", err))
 			if c.UseSyslog {
 				s.Err("E: " + string(err.Error()))
-				os.Exit(1)
 			}
 			continue
 		}
@@ -194,27 +188,24 @@ func (p PluginUtils) FindPlugins(c configuration.Configuration, s *syslog.Writer
 		if c.UseSyslog {
 			s.Info("I: Checking location " + dir + " for plugins")
 		}
-		matches, err := filepath.Glob("*.plugin")
+		matches, err := filepath.Glob(filepath.Join(dir, "*.plugin"))
 		if err != nil {
 			fmt.Println(fmt.Errorf("ERROR: %w", err))
 			if c.UseSyslog {
 				s.Err("E: " + string(err.Error()))
-				os.Exit(1)
 			}
+			continue
 		}
 		if len(matches) > 0 {
 			fmt.Printf("Found: %v", matches)
 			if c.UseSyslog {
 				s.Info("I: Found " + fmt.Sprintf("%v", matches))
 			}
-			for _, match := range matches {
-				fmt.Println("Inject path to the plugin...")
-				plugins = append(plugins, dir+"/"+match)
-			}
+			plugins = append(plugins, matches...)
 		} else {
 			fmt.Printf("No plugins found in %s\n", dir)
 			if c.UseSyslog {
-				s.Err("E: No plugins in " + dir)
+				s.Info("I: No plugins in " + dir)
 			}
 		}
 	}
