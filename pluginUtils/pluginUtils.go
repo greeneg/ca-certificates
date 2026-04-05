@@ -207,7 +207,10 @@ func (p PluginUtils) FindPlugins(c configuration.Configuration, s *syslog.Writer
 			if c.UseSyslog {
 				s.Info("I: Found " + fmt.Sprintf("%v", matches))
 			}
-			plugins = append(plugins, matches...)
+			for _, match := range matches {
+				fmt.Println("Inject path to the plugin...")
+				plugins = append(plugins, dir+"/"+match)
+			}
 		} else {
 			fmt.Printf("No plugins found in %s\n", dir)
 			if c.UseSyslog {
