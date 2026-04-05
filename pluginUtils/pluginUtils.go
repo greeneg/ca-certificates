@@ -3,9 +3,11 @@ package pluginUtils
 import (
 	"errors"
 	"fmt"
+	"log/syslog"
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"time"
 
 	"github.com/greeneg/ca-certificates/configuration"
@@ -151,4 +153,65 @@ func (p PluginUtils) FileExists(f string) bool {
 	fmt.Println("ERROR: Cannot stat file! " + string(err.Error()))
 	os.Exit(2)
 	return false
+}
+
+func (p PluginUtils) FindPlugins(c configuration.Configuration, s *syslog.Writer) ([]string, error) {
+	var plugins []string
+
+	for _, p := range c.HooksDirList {
+		dir := c.DestDir + p
+		err := os.Chdir(dir)
+		if err != nil {
+			if dir == "/etc/ca-certificates/update.d" {
+				if errors.Is(err, os.ErrNotExist) {
+					// we can effectively skip this case as
+					// the /etc/ca-certificates/update.d is
+					// an override location
+					fmt.Printf("Location %s does not exist\n", dir)
+					if c.UseSyslog {
+						s.Notice("N: Location /etc/ca-certificates/update.d does not exist. Skipping")
+					}
+					continue
+				}
+			}
+			fmt.Println(fmt.Errorf("ERROR: %w", err))
+			if c.UseSyslog {
+				s.Err("E: " + string(err.Error()))
+				os.Exit(1)
+			}
+		}
+		fmt.Printf("Checking location %s for plugins\n", dir)
+		if c.UseSyslog {
+			s.Info("I: Checking location " + dir + " for plugins")
+		}
+		matches, err := filepath.Glob("*.plugin")
+		if err != nil {
+			fmt.Println(fmt.Errorf("ERROR: %w", err))
+			if c.UseSyslog {
+				s.Err("E: " + string(err.Error()))
+				os.Exit(1)
+			}
+		}
+		if len(matches) > 0 {
+			fmt.Printf("Found: %v", matches)
+			if c.UseSyslog {
+				s.Info("I: Found " + fmt.Sprintf("%v", matches))
+			}
+			plugins = append(plugins, matches...)
+		} else {
+			fmt.Printf("No plugins found in %s\n", dir)
+			if c.UseSyslog {
+				s.Err("E: No plugins in " + dir)
+			}
+		}
+	}
+
+	return plugins, nil
+}
+
+func (p PluginUtils) RunPlugins(plugins []string, c configuration.Configuration) error {
+	for _, plugin := range p {
+		fmt.Printf("plugin: %s", plugin)
+	}
+	return nil
 }
