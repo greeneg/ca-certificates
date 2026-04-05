@@ -19,11 +19,12 @@ This version of the update-ca-certificates command uses a plugin-based architect
 
 ### Plugin Locations
 
-Plugins are discovered in the following directories:
+Plugins are discovered from the following directories, in this order:
 
+- `/etc/ca-certificates/update.d/*.plugin` - Administrator-provided plugins
 - `/usr/lib/ca-certificates/update.d/*.plugin` - System-provided plugins
-- `/etc/ca-certificates/update.d/*.plugin` - Administrator-provided override plugins
 
+Plugins from both directories are discovered; this does not imply basename-based override precedence.
 ### Plugin Architecture
 
 Each plugin:
