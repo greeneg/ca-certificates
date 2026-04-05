@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/greeneg/ca-certificates/configuration"
 	"github.com/greeneg/ca-certificates/pluginUtils"
@@ -39,7 +40,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	etcCertsDir := cfg.DestDir + "etc/ssl/certs"
+	etcCertsDir := filepath.Join(cfg.DestDir, "etc/ssl/certs")
 	pemDir := cfg.DestDir + cfg.StateDir + "/pem"
 
 	// ensure that the pemDir exists

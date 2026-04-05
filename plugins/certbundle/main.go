@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/greeneg/ca-certificates/configuration"
@@ -59,7 +60,7 @@ func main() {
 		fmt.Println("ERROR: Cannot generate pem file: " + string(err.Error()))
 		os.Exit(1)
 	}
-	etcCaPemFile := cfg.DestDir + "etc/ssl/ca-bundle.pem"
+	etcCaPemFile := filepath.Join(cfg.DestDir, "etc/ssl/ca-bundle.pem")
 	fileExists, err := p.FileExists(etcCaPemFile)
 	if err != nil {
 		fmt.Println("ERROR: Cannot check if file exists: " + string(err.Error()))
