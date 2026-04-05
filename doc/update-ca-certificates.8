@@ -2,7 +2,7 @@
 .\" First parameter, NAME, should be all caps
 .\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
 .\" other parameters are allowed: see man(7), man(1)
-.TH UPDATE-CA-CERTIFICATES 8 "27 April 2010"
+.TH UPDATE-CA-CERTIFICATES 8 "5 April 2026"
 .\" Please adjust this date whenever revising the manpage.
 .\"
 .\" Some roff macros, for reference:
@@ -33,18 +33,24 @@ To blacklist certificates symlinks to the respective certificates
 can be placed in /etc/pki/trust/blocklist
 .PP
 \fBupdate-ca-certificates\fP invokes
-custom hooks in /usr/lib/ca-certificates/update.d/*.run and
-/etc/ca-certificates/update.d/*.run to generate various certificate storages as
-used by different programs. The command line options used for invoking
-update-ca-certificates are passed to the hooks as well.
+custom plugins in /usr/lib/ca-certificates/update.d/*.plugin and
+/etc/ca-certificates/update.d/*.plugin to generate various certificate storages as
+used by different programs. The /etc/ca-certificates/update.d directory is an
+override location for system administrators to add custom plugins.
+.PP
+The tool uses syslog for logging by default and supports transactional updates
+to prevent plugin execution during package management operations.
 .SH OPTIONS
 A summary of options is included below.
 .TP
 .B \-h, \-\-help
 Show summary of options.
 .TP
+.B \-V, \-\-version
+Show version information.
+.TP
 .B \-v, \-\-verbose
-Be verbose. Output \fBc_rehash\fP.
+Be verbose. Output additional information beyond syslog logging.
 .TP
 .B \-r, \-\-root <Directory>
 Root Directory to use (defaults to / if not specified).
@@ -64,5 +70,40 @@ Directory of CA certificate trust anchors for use by the admin
 .TP
 .I /etc/pki/trust/blocklist
 Directory of blacklisted CA certificates for use by the admin
+.TP
+.I /usr/lib/ca-certificates/update.d
+Directory containing system certificate update plugins (*.plugin files)
+.TP
+.I /etc/ca-certificates/update.d
+Directory for administrator-provided certificate update plugins (*.plugin files)
+.TP
+.I /var/lib/ca-certificates
+State directory for certificate store management
+.TP
+.I /etc/pki/trust/.updated
+Lock file created during transactional updates to prevent plugin execution
+.TP
+.I /var/log/update-ca.log
+Log file for certificate update operations
+.SH ENVIRONMENT
+.TP
+.B TRANSACTIONAL_UPDATE
+When set to "true", "yes", or "1", prevents plugin execution and creates a lock file.
+This is used during package management operations to avoid conflicts.
 .SH SEE ALSO
 .BR c_rehash (1),
+.BR p11-kit (8),
+.BR trust (1)
+.PP
+For more information about p11-kit trust anchors:
+.UR https://p11-glue.github.io/p11-glue/p11-kit.html
+.UE
+.SH AUTHOR
+.B update-ca-certificates
+was written by Gary L. Greene Jr. for YggdrasilSoft, LLC.
+.PP
+Copyright \\(co 2026 YggdrasilSoft, LLC.
+.PP
+This manual page was written for the update-ca-certificates tool.
+.SH LICENSE
+This program is licensed under the GNU General Public License v3.0 or later.

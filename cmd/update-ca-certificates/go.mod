@@ -1,11 +1,10 @@
-module github.com/greeneg/ca-certificates/plugins/certbundle
+module github.com/greeneg/ca-certificates/cmd/update-ca-certificates
 
 go 1.26.1
 
-require (
-	github.com/greeneg/ca-certificates/configuration v0.0.0
-	github.com/greeneg/ca-certificates/pluginUtils v0.0.0-20260329195917-22b8952113d4
-)
+require github.com/greeneg/ca-certificates/configuration v0.0.0
+
+require github.com/greeneg/ca-certificates/pluginUtils v0.0.0
 
 require github.com/MakeNowJust/heredoc v1.0.0 // indirect
 

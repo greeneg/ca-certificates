@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/greeneg/ca-certificates/configuration"
 	"github.com/greeneg/ca-certificates/pluginUtils"
@@ -29,10 +28,6 @@ func main() {
 	// Trim any trailing newline for consistent processing
 	line = strings.TrimRight(line, "\n")
 
-	// variables
-	var fileTimeStamp time.Time
-	var dirTimeStamp time.Time
-
 	// process line as JSON
 	cfg := configuration.NewConfiguration()
 	cfg, err = cfg.FromJson(line)
@@ -41,8 +36,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// ensure that destDir ends with a slash
 	p := pluginUtils.NewPluginUtils()
+	// check that stateDir exists
 	cfg.DestDir = p.EnsureVarEndsWithSlash(cfg.DestDir)
 	stateDir := filepath.Join(cfg.DestDir, cfg.StateDir)
 	fileExists, err := p.FileExists(stateDir)
@@ -54,48 +49,29 @@ func main() {
 		fmt.Println("ERROR: State directory does not exist: " + stateDir)
 		os.Exit(1)
 	}
-	caFile := filepath.Join(stateDir, "ca-bundle.pem")
-	caDir := filepath.Join(stateDir, "pem")
 
-	// first get the stat info for the above
-	fileTimeStamp = p.StatInfo(caFile, cfg)
-	dirTimeStamp = p.StatInfo(caDir, cfg)
-
-	if !cfg.Fresh && fileTimeStamp.After(dirTimeStamp) {
-		os.Exit(0)
-	}
-
-	// now execute trust to get the pem file generated
-	code, err := p.RunTrust(caFile, "bundle")
-	if err != nil {
-		fmt.Println("ERROR: Could not run command: " + string(err.Error()))
-		os.Exit(code)
-	}
+	caDir := filepath.Join(stateDir, "openssl")
 
 	if cfg.Verbose {
-		fmt.Println("Creating " + caFile)
+		fmt.Println("Creating " + caDir)
 	}
-	err = p.GeneratePemFile(caFile)
-	if err != nil {
-		fmt.Println("ERROR: Cannot generate pem file: " + string(err.Error()))
-		os.Exit(1)
-	}
-	etcCaPemFile := filepath.Join(cfg.DestDir, "etc/ssl/ca-bundle.pem")
-	fileExists, err = p.FileExists(etcCaPemFile)
+	// create caDir and all its parents if it does not exist
+	fileExists, err = p.FileExists(caDir)
 	if err != nil {
 		fmt.Println("ERROR: Cannot check if file exists: " + string(err.Error()))
 		os.Exit(1)
 	}
-	if fileExists && !p.IsSymLink(etcCaPemFile) {
-		err := os.Remove(etcCaPemFile)
+	if !fileExists {
+		err := os.MkdirAll(caDir, 0755)
 		if err != nil {
-			fmt.Println("ERROR: Cannot remove existing /etc/ssl/ca-bundle.pem: " + string(err.Error()))
+			fmt.Println("ERROR: Cannot create directory: " + string(err.Error()))
 			os.Exit(1)
 		}
-		err = p.ConfigureEtcSslCaBundlePem(etcCaPemFile)
-		if err != nil {
-			fmt.Println("ERROR: Cannot configure /etc/ssl/ca-bundle.pem: " + string(err.Error()))
-			os.Exit(1)
-		}
+	}
+
+	code, err := p.RunTrust(caDir, "openssl")
+	if err != nil {
+		fmt.Println("ERROR: Cannot run trust command: " + string(err.Error()))
+		os.Exit(code)
 	}
 }
