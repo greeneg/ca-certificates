@@ -145,7 +145,7 @@ func main() {
 					sysLog.Info("I: Transactional update in progress. not running any plugins.")
 				}
 			}
-			_, err := os.Create("/etc/pki/trust/.updated")
+			err := os.WriteFile("/etc/pki/trust/.updated", []byte(""), 0644)
 			if err != nil {
 				fmt.Println(fmt.Errorf("ERROR: %w", err))
 				if c.UseSyslog {
