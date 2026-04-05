@@ -229,7 +229,7 @@ func (p PluginUtils) RunPlugins(plugins []string, c configuration.Configuration,
 	}
 
 	for _, plugin := range plugins {
-		fmt.Printf("plugin: %s", plugin)
+		fmt.Printf("plugin: %s\n", plugin)
 		cmd := exec.Command(plugin)
 		cmd.Stdin = strings.NewReader(jsonStr)
 		output, err := cmd.CombinedOutput()
