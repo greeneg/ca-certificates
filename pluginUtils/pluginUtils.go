@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/greeneg/ca-certificates/configuration"
@@ -213,11 +214,39 @@ func (p PluginUtils) FindPlugins(c configuration.Configuration, s *syslog.Writer
 	return plugins, nil
 }
 
-func (p PluginUtils) RunPlugins(plugins []string, c configuration.Configuration) error {
-	for _, plugin := range plugins {
-		fmt.Printf("plugin: %s", plugin)
+func (p PluginUtils) RunPlugins(plugins []string, c configuration.Configuration, s *syslog.Writer) {
+	// convert c to json once and pass it to each plugin via stdin
+	jsonStr, err := c.ToJson(c)
+	if err != nil {
+		fmt.Println(fmt.Errorf("ERROR: %w", err))
+		if c.UseSyslog && s != nil {
+			s.Err("E: " + string(err.Error()))
+		}
+		// swallow the error. If the plugin dies, keep going with the next one.
+		// The plugin should log its own errors and we don't want to stop all
+		// plugins if one has an error with the configuration
+		return
 	}
-	return nil
+
+	for _, plugin := range plugins {
+		fmt.Printf("plugin: %s\n", plugin)
+		cmd := exec.Command(plugin)
+		cmd.Stdin = strings.NewReader(jsonStr)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		err := cmd.Run()
+		if err != nil {
+			exitCode := 1
+			if cmd.ProcessState != nil {
+				exitCode = cmd.ProcessState.ExitCode()
+			}
+			fmt.Printf("ERROR: Could not run plugin %s: %v. Exit code: %d\n", plugin, err, exitCode)
+			if c.UseSyslog && s != nil {
+				s.Err("E: Could not run plugin " + plugin + ": " + string(err.Error()) + ". Exit code: " + fmt.Sprintf("%d", exitCode))
+			}
+			continue
+		}
+	}
 }
 
 func (p PluginUtils) EnsureVarEndsWithSlash(v string) string {

@@ -141,14 +141,14 @@ func main() {
 		case "true", "yes", "1":
 			if c.Verbose {
 				fmt.Println("transactional update in progress, not running any plugins")
-				if c.UseSyslog {
+				if c.UseSyslog && sysLog != nil {
 					sysLog.Info("I: Transactional update in progress. not running any plugins.")
 				}
 			}
 			err := os.WriteFile("/etc/pki/trust/.updated", []byte(""), 0644)
 			if err != nil {
 				fmt.Println(fmt.Errorf("ERROR: %w", err))
-				if c.UseSyslog {
+				if c.UseSyslog && sysLog != nil {
 					sysLog.Err("E: " + string(err.Error()))
 				}
 				os.Exit(1)
@@ -157,7 +157,7 @@ func main() {
 		default:
 			if c.Verbose {
 				fmt.Println("transactional updates are not running. Continuing")
-				if c.UseSyslog {
+				if c.UseSyslog && sysLog != nil {
 					sysLog.Info("I: Transactional updates are not running. Continuing")
 				}
 			}
@@ -167,7 +167,7 @@ func main() {
 	fileExists, err := p.FileExists("/etc/pki/trust/.updated")
 	if err != nil {
 		fmt.Println(fmt.Errorf("ERROR: %w", err))
-		if c.UseSyslog {
+		if c.UseSyslog && sysLog != nil {
 			sysLog.Err("E: " + string(err.Error()))
 		}
 		os.Exit(1)
@@ -176,7 +176,7 @@ func main() {
 		err = os.Remove("/etc/pki/trust/.updated")
 		if err != nil {
 			fmt.Println("ERROR: %w", err)
-			if c.UseSyslog {
+			if c.UseSyslog && sysLog != nil {
 				sysLog.Err("E: " + string(err.Error()))
 			}
 			os.Exit(1)
@@ -187,21 +187,14 @@ func main() {
 	plugins, err := p.FindPlugins(c, sysLog)
 	if err != nil {
 		fmt.Println(fmt.Errorf("ERROR: %w", err))
-		if c.UseSyslog {
+		if c.UseSyslog && sysLog != nil {
 			sysLog.Err("E: " + string(err.Error()))
 		}
 		os.Exit(1)
 	}
 
 	// now execute the plugins
-	err = p.RunPlugins(plugins, c)
-	if err != nil {
-		fmt.Println(fmt.Errorf("ERROR: %w", err))
-		if c.UseSyslog {
-			sysLog.Err("E: " + string(err.Error()))
-		}
-		os.Exit(1)
-	}
+	p.RunPlugins(plugins, c, sysLog)
 
 	syscall.Umask(oldUmask) // restore our previous umask
 }
