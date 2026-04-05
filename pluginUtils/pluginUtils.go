@@ -219,7 +219,7 @@ func (p PluginUtils) RunPlugins(plugins []string, c configuration.Configuration,
 	jsonStr, err := c.ToJson(c)
 	if err != nil {
 		fmt.Println(fmt.Errorf("ERROR: %w", err))
-		if c.UseSyslog {
+		if c.UseSyslog && s != nil {
 			s.Err("E: " + string(err.Error()))
 		}
 		// swallow the error. If the plugin dies, keep going with the next one.
@@ -239,7 +239,7 @@ func (p PluginUtils) RunPlugins(plugins []string, c configuration.Configuration,
 				exitCode = cmd.ProcessState.ExitCode()
 			}
 			fmt.Printf("ERROR: Could not run plugin %s: %v. Output: %s. Exit code: %d\n", plugin, err, string(output), exitCode)
-			if c.UseSyslog {
+			if c.UseSyslog && s != nil {
 				s.Err("E: Could not run plugin " + plugin + ": " + string(err.Error()) + ". Output: " + string(output) + ". Exit code: " + fmt.Sprintf("%d", exitCode))
 			}
 			continue
