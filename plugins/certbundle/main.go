@@ -34,8 +34,18 @@ func main() {
 	// ensure that destDir ends with a slash
 	p := pluginUtils.NewPluginUtils()
 	cfg.DestDir = p.EnsureVarEndsWithSlash(cfg.DestDir)
-	caFile := cfg.DestDir + cfg.StateDir + "/ca-bundle.pem"
-	caDir := cfg.DestDir + cfg.StateDir + "/pem"
+	stateDir := filepath.Join(cfg.DestDir, cfg.StateDir)
+	fileExists, err := p.FileExists(stateDir)
+	if err != nil {
+		fmt.Println("ERROR: Cannot check if file exists: " + string(err.Error()))
+		os.Exit(1)
+	}
+	if !fileExists {
+		fmt.Println("ERROR: State directory does not exist: " + stateDir)
+		os.Exit(1)
+	}
+	caFile := filepath.Join(stateDir, "ca-bundle.pem")
+	caDir := filepath.Join(stateDir, "pem")
 
 	// first get the stat info for the above
 	fileTimeStamp = p.StatInfo(caFile, cfg)
@@ -61,7 +71,7 @@ func main() {
 		os.Exit(1)
 	}
 	etcCaPemFile := filepath.Join(cfg.DestDir, "etc/ssl/ca-bundle.pem")
-	fileExists, err := p.FileExists(etcCaPemFile)
+	fileExists, err = p.FileExists(etcCaPemFile)
 	if err != nil {
 		fmt.Println("ERROR: Cannot check if file exists: " + string(err.Error()))
 		os.Exit(1)

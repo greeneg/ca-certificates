@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/greeneg/ca-certificates/configuration"
 	"github.com/greeneg/ca-certificates/pluginUtils"
@@ -28,7 +29,7 @@ func main() {
 	p := pluginUtils.NewPluginUtils()
 	// check that stateDir exists
 	cfg.DestDir = p.EnsureVarEndsWithSlash(cfg.DestDir)
-	stateDir := cfg.DestDir + cfg.StateDir
+	stateDir := filepath.Join(cfg.DestDir, cfg.StateDir)
 	fileExists, err := p.FileExists(stateDir)
 	if err != nil {
 		fmt.Println("ERROR: Cannot check if file exists: " + string(err.Error()))
@@ -39,7 +40,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	caDir := cfg.DestDir + cfg.StateDir + "/openssl"
+	caDir := filepath.Join(stateDir, "openssl")
 
 	if cfg.Verbose {
 		fmt.Println("Creating " + caDir)
