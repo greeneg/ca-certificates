@@ -148,17 +148,15 @@ func (p PluginUtils) CheckSymlinkTarget(f, target string) bool {
 	return false
 }
 
-func (p PluginUtils) FileExists(f string) bool {
+func (p PluginUtils) FileExists(f string) (bool, error) {
 	_, err := os.Stat(f)
 	if err == nil {
-		return true
+		return true, nil
 	}
 	if errors.Is(err, os.ErrNotExist) {
-		return false
+		return false, nil
 	}
-	fmt.Println("ERROR: Cannot stat file! " + string(err.Error()))
-	os.Exit(2)
-	return false
+	return false, err
 }
 
 func (p PluginUtils) FindPlugins(c configuration.Configuration, s *syslog.Writer) ([]string, error) {
