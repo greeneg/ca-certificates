@@ -9,13 +9,15 @@ all: $(TARGET)
 
 $(TARGET): *.go
 	pwd && \
-	go mod tidy && \
 	go build -v -o $@ ./
 
 install: $(TARGET)
 	install -Dm755 $(TARGET) -t $(DESTDIR)$(plugindir)
 
+tidy:
+	go mod tidy
+
 clean:
 	rm -f $(TARGET)
 
-.PHONY: all install clean
+.PHONY: all install clean tidy

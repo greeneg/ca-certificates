@@ -8,8 +8,10 @@ all: $(TARGET)
 
 $(TARGET): *.go
 	pwd && \
-	go mod tidy && \
 	go build -v -o $@ ./
+
+tidy:
+	go mod tidy
 
 install: $(TARGET)
 	install -Dm755 $(TARGET) -t $(DESTDIR)$(sbindir)
@@ -17,4 +19,4 @@ install: $(TARGET)
 clean:
 	rm -f $(TARGET)
 
-.PHONY: all install clean
+.PHONY: all install clean tidy

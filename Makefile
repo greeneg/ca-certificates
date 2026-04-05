@@ -29,6 +29,13 @@ install:
 	install -Dm644 cmd/update-ca-certificates/ca-certificates-setup.service -t $(DESTDIR)$(systemdsystemunitdir)
 	install -Dm644 cmd/update-ca-certificates/ca-certificates.path -t $(DESTDIR)$(systemdsystemunitdir)
 
+tidy:
+	$(MAKE) -C cmd/update-ca-certificates tidy
+	$(MAKE) -C plugins/certbundle tidy
+	$(MAKE) -C plugins/java tidy
+	$(MAKE) -C plugins/openssl tidy
+	$(MAKE) -C plugins/etcssl tidy
+
 clean:
 	$(MAKE) -C cmd/update-ca-certificates clean
 	$(MAKE) -C plugins/certbundle clean
@@ -36,4 +43,4 @@ clean:
 	$(MAKE) -C plugins/openssl clean
 	$(MAKE) -C plugins/etcssl clean
 
-.PHONY: all install clean
+.PHONY: all install clean tidy
