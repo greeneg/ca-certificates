@@ -214,7 +214,7 @@ func (p PluginUtils) FindPlugins(c configuration.Configuration, s *syslog.Writer
 	return plugins, nil
 }
 
-func (p PluginUtils) RunPlugins(plugins []string, c configuration.Configuration, s *syslog.Writer) error {
+func (p PluginUtils) RunPlugins(plugins []string, c configuration.Configuration, s *syslog.Writer) {
 	// convert c to json once and pass it to each plugin via stdin
 	jsonStr, err := c.ToJson(c)
 	if err != nil {
@@ -222,7 +222,10 @@ func (p PluginUtils) RunPlugins(plugins []string, c configuration.Configuration,
 		if c.UseSyslog {
 			s.Err("E: " + string(err.Error()))
 		}
-		return err
+		// swallow the error. If the plugin dies, keep going with the next one.
+		// The plugin should log its own errors and we don't want to stop all
+		// plugins if one has an error with the configuration
+		return
 	}
 
 	for _, plugin := range plugins {
@@ -243,7 +246,6 @@ func (p PluginUtils) RunPlugins(plugins []string, c configuration.Configuration,
 		}
 		fmt.Printf("Output from plugin %s: %s", plugin, string(output))
 	}
-	return nil
 }
 
 func (p PluginUtils) EnsureVarEndsWithSlash(v string) string {

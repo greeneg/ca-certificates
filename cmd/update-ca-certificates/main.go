@@ -194,14 +194,7 @@ func main() {
 	}
 
 	// now execute the plugins
-	err = p.RunPlugins(plugins, c, sysLog)
-	if err != nil {
-		fmt.Println(fmt.Errorf("ERROR: %w", err))
-		if c.UseSyslog {
-			sysLog.Err("E: " + string(err.Error()))
-		}
-		os.Exit(1)
-	}
+	p.RunPlugins(plugins, c, sysLog)
 
 	syscall.Umask(oldUmask) // restore our previous umask
 }
