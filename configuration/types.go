@@ -12,6 +12,8 @@ type Configuration struct {
 	DestDir            string   `json:"rootDir"`
 	Fresh              bool     `json:"clean"`
 	UseSyslog          bool     `json:"useSyslog"`
+	UseLogFile         bool     `json:"useLogFile"`
+	UseConsoleLog      bool     `json:"useConsoleLog"`
 	LogFile            string   `json:"logFile"`
 	SyslogFacility     string   `json:"syslogFacility"`
 	DefaultSyslogLevel string   `json:"defaultSyslogLevel"`
@@ -28,6 +30,8 @@ func NewConfiguration() Configuration {
 	c.Fresh = false
 	c.LogFile = "/var/log/update-ca.log"
 	c.UseSyslog = true
+	c.UseLogFile = false
+	c.UseConsoleLog = true
 	c.SyslogFacility = "DAEMON"
 	c.DefaultSyslogLevel = "INFO"
 

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/greeneg/ca-certificates/configuration"
+	"github.com/greeneg/ca-certificates/logger"
 	"github.com/greeneg/ca-certificates/pluginUtils"
 )
 
@@ -41,60 +42,63 @@ func main() {
 		os.Exit(1)
 	}
 
+	// load our logger
+	logger := logger.NewLogger(cfg, "certbundle")
+
 	// ensure that destDir ends with a slash
 	p := pluginUtils.NewPluginUtils()
 	cfg.DestDir = p.EnsureVarEndsWithSlash(cfg.DestDir)
 	stateDir := filepath.Join(cfg.DestDir, cfg.StateDir)
 	fileExists, err := p.FileExists(stateDir)
 	if err != nil {
-		fmt.Println("ERROR: Cannot check if file exists: " + string(err.Error()))
+		logger.Log(logger.LvlError(), fmt.Sprintf("Cannot check if file exists: %v", err))
 		os.Exit(1)
 	}
 	if !fileExists {
-		fmt.Println("ERROR: State directory does not exist: " + stateDir)
+		logger.Log(logger.LvlError(), fmt.Sprintf("State directory does not exist: %s", stateDir))
 		os.Exit(1)
 	}
 	caFile := filepath.Join(stateDir, "ca-bundle.pem")
 	caDir := filepath.Join(stateDir, "pem")
 
 	// first get the stat info for the above
-	fileTimeStamp = p.StatInfo(caFile, cfg)
-	dirTimeStamp = p.StatInfo(caDir, cfg)
+	fileTimeStamp = p.StatInfo(caFile, cfg, logger)
+	dirTimeStamp = p.StatInfo(caDir, cfg, logger)
 
 	if !cfg.Fresh && fileTimeStamp.After(dirTimeStamp) {
 		os.Exit(0)
 	}
 
 	// now execute trust to get the pem file generated
-	code, err := p.RunTrust(caFile, "bundle")
+	code, err := p.RunTrust(caFile, "bundle", logger)
 	if err != nil {
-		fmt.Println("ERROR: Could not run command: " + string(err.Error()))
+		logger.Log(logger.LvlError(), fmt.Sprintf("Could not run command: %v", err))
 		os.Exit(code)
 	}
 
 	if cfg.Verbose {
-		fmt.Println("Creating " + caFile)
+		logger.Log(logger.LvlInfo(), "Creating "+caFile)
 	}
-	err = p.GeneratePemFile(caFile)
+	err = p.GeneratePemFile(caFile, logger)
 	if err != nil {
-		fmt.Println("ERROR: Cannot generate pem file: " + string(err.Error()))
+		logger.Log(logger.LvlError(), fmt.Sprintf("Cannot generate pem file: %v", err))
 		os.Exit(1)
 	}
 	etcCaPemFile := filepath.Join(cfg.DestDir, "etc/ssl/ca-bundle.pem")
 	fileExists, err = p.FileExists(etcCaPemFile)
 	if err != nil {
-		fmt.Println("ERROR: Cannot check if file exists: " + string(err.Error()))
+		logger.Log(logger.LvlError(), fmt.Sprintf("Cannot check if file exists: %v", err))
 		os.Exit(1)
 	}
 	if fileExists && !p.IsSymLink(etcCaPemFile) {
 		err := os.Remove(etcCaPemFile)
 		if err != nil {
-			fmt.Println("ERROR: Cannot remove existing /etc/ssl/ca-bundle.pem: " + string(err.Error()))
+			logger.Log(logger.LvlError(), fmt.Sprintf("Cannot remove existing /etc/ssl/ca-bundle.pem: %v", err))
 			os.Exit(1)
 		}
-		err = p.ConfigureEtcSslCaBundlePem(etcCaPemFile)
+		err = p.ConfigureEtcSslCaBundlePem(etcCaPemFile, logger)
 		if err != nil {
-			fmt.Println("ERROR: Cannot configure /etc/ssl/ca-bundle.pem: " + string(err.Error()))
+			logger.Log(logger.LvlError(), fmt.Sprintf("Cannot configure /etc/ssl/ca-bundle.pem: %v", err))
 			os.Exit(1)
 		}
 	}

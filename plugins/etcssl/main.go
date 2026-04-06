@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/greeneg/ca-certificates/configuration"
+	"github.com/greeneg/ca-certificates/logger"
 	"github.com/greeneg/ca-certificates/pluginUtils"
 )
 
@@ -35,6 +36,9 @@ func main() {
 		fmt.Println("ERROR: Cannot process JSON string: " + string(err.Error()))
 		os.Exit(1)
 	}
+
+	// load our logger
+	logger := logger.NewLogger(cfg, "etcssl")
 
 	p := pluginUtils.NewPluginUtils()
 	// check that stateDir exists
@@ -67,23 +71,23 @@ func main() {
 		}
 	}
 
-	code, err := p.RunTrust(pemDir, "directory-hash")
+	code, err := p.RunTrust(pemDir, "directory-hash", logger)
 	if err != nil {
-		fmt.Println("ERROR: Could not run command: " + string(err.Error()))
+		logger.Log(logger.LvlError(), fmt.Sprintf("Could not run command: %v", err))
 		os.Exit(code)
 	}
 
-	fmt.Println("Creating " + etcCertsDir)
+	logger.Log(logger.LvlInfo(), "Creating "+etcCertsDir)
 	// check that /etc/ssl/certs exists and is a symlink to the pemDir
-	if !p.IsSymLink(etcCertsDir) || !p.CheckSymlinkTarget(etcCertsDir, pemDir) {
+	if !p.IsSymLink(etcCertsDir) || !p.CheckSymlinkTarget(etcCertsDir, pemDir, logger) {
 		// if not, remove the existing path and create the symlink
 		if cfg.Verbose {
-			fmt.Println("NOTICE: Restoring symlink for " + etcCertsDir)
+			logger.Log(logger.LvlInfo(), "NOTICE: Restoring symlink for "+etcCertsDir)
 		}
 		info, err := os.Lstat(etcCertsDir)
 		if err != nil {
 			if !os.IsNotExist(err) {
-				fmt.Println("ERROR: Cannot inspect existing /etc/ssl/certs: " + string(err.Error()))
+				logger.Log(logger.LvlError(), fmt.Sprintf("Cannot inspect existing /etc/ssl/certs: %v", err))
 				os.Exit(1)
 			}
 		} else {
@@ -93,13 +97,13 @@ func main() {
 				err = os.Remove(etcCertsDir)
 			}
 			if err != nil {
-				fmt.Println("ERROR: Cannot remove existing /etc/ssl/certs: " + string(err.Error()))
+				logger.Log(logger.LvlError(), fmt.Sprintf("Cannot remove existing /etc/ssl/certs: %v", err))
 				os.Exit(1)
 			}
 		}
 		err = os.Symlink(pemDir, etcCertsDir)
 		if err != nil {
-			fmt.Println("ERROR: Cannot create symlink: " + string(err.Error()))
+			logger.Log(logger.LvlError(), fmt.Sprintf("Cannot create symlink: %v", err))
 			os.Exit(1)
 		}
 	}

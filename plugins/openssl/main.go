@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/greeneg/ca-certificates/configuration"
+	"github.com/greeneg/ca-certificates/logger"
 	"github.com/greeneg/ca-certificates/pluginUtils"
 )
 
@@ -36,42 +37,45 @@ func main() {
 		os.Exit(1)
 	}
 
+	// load our logger
+	logger := logger.NewLogger(cfg, "openssl.plugin")
+
 	p := pluginUtils.NewPluginUtils()
 	// check that stateDir exists
 	cfg.DestDir = p.EnsureVarEndsWithSlash(cfg.DestDir)
 	stateDir := filepath.Join(cfg.DestDir, cfg.StateDir)
 	fileExists, err := p.FileExists(stateDir)
 	if err != nil {
-		fmt.Println("ERROR: Cannot check if file exists: " + string(err.Error()))
+		logger.Log(logger.LvlError(), fmt.Sprintf("Cannot check if file exists: %v", err))
 		os.Exit(1)
 	}
 	if !fileExists {
-		fmt.Println("ERROR: State directory does not exist: " + stateDir)
+		logger.Log(logger.LvlError(), fmt.Sprintf("State directory does not exist: %s", stateDir))
 		os.Exit(1)
 	}
 
 	caDir := filepath.Join(stateDir, "openssl")
 
 	if cfg.Verbose {
-		fmt.Println("Creating " + caDir)
+		logger.Log(logger.LvlInfo(), "Creating "+caDir)
 	}
 	// create caDir and all its parents if it does not exist
 	fileExists, err = p.FileExists(caDir)
 	if err != nil {
-		fmt.Println("ERROR: Cannot check if file exists: " + string(err.Error()))
+		logger.Log(logger.LvlError(), fmt.Sprintf("Cannot check if file exists: %v", err))
 		os.Exit(1)
 	}
 	if !fileExists {
 		err := os.MkdirAll(caDir, 0755)
 		if err != nil {
-			fmt.Println("ERROR: Cannot create directory: " + string(err.Error()))
+			logger.Log(logger.LvlError(), fmt.Sprintf("Cannot create directory: %v", err))
 			os.Exit(1)
 		}
 	}
 
-	code, err := p.RunTrust(caDir, "openssl")
+	code, err := p.RunTrust(caDir, "openssl", logger)
 	if err != nil {
-		fmt.Println("ERROR: Cannot run trust command: " + string(err.Error()))
+		logger.Log(logger.LvlError(), fmt.Sprintf("Cannot run trust command: %v", err))
 		os.Exit(code)
 	}
 }
