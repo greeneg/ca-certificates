@@ -11,7 +11,7 @@ type Logger struct {
 	LogFile            string `json:"logFile"`
 	UseSyslog          bool   `json:"useSyslog"`
 	UseLogFile         bool   `json:"useLogFile"`
-	UseConsole         bool   `json:"useConsole"`
+	UseConsoleLog      bool   `json:"useConsoleLog"`
 	SyslogFacility     string `json:"syslogFacility"`
 	DefaultSyslogLevel string `json:"defaultSyslogLevel"`
 	SyslogWriter       *syslog.Writer
@@ -36,7 +36,7 @@ func NewLogger(cfg configuration.Configuration, appName string) Logger {
 	l.LogFile = cfg.LogFile
 	l.UseSyslog = cfg.UseSyslog
 	l.UseLogFile = cfg.UseLogFile
-	l.UseConsole = cfg.UseConsoleLog
+	l.UseConsoleLog = cfg.UseConsoleLog
 	l.SyslogFacility = cfg.SyslogFacility
 	l.DefaultSyslogLevel = cfg.DefaultSyslogLevel
 
@@ -120,7 +120,7 @@ func (l Logger) Log(level LogLevel, message string) {
 			l.SyslogWriter.Info("I: " + message)
 		}
 	}
-	if l.UseConsole {
+	if l.UseConsoleLog {
 		fmt.Printf("%s: %s\n", level.String(), message)
 	}
 }

@@ -12,7 +12,7 @@ type Configuration struct {
 	DestDir            string   `json:"rootDir"`
 	Fresh              bool     `json:"clean"`
 	UseSyslog          bool     `json:"useSyslog"`
-	UseLogFile         bool     `json:"useFileLog"`
+	UseLogFile         bool     `json:"useLogFile"`
 	UseConsoleLog      bool     `json:"useConsoleLog"`
 	LogFile            string   `json:"logFile"`
 	SyslogFacility     string   `json:"syslogFacility"`
