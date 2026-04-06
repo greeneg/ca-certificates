@@ -4,10 +4,13 @@ go 1.26.1
 
 replace github.com/greeneg/ca-certificates/configuration => ../../configuration
 
+replace github.com/greeneg/ca-certificates/logger => ../../logger
+
 replace github.com/greeneg/ca-certificates/pluginUtils => ../../pluginUtils
 
 require (
 	github.com/greeneg/ca-certificates/configuration v0.0.0
+	github.com/greeneg/ca-certificates/logger v0.0.0
 	github.com/greeneg/ca-certificates/pluginUtils v0.0.0
 )
 

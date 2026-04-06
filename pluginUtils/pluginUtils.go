@@ -3,7 +3,6 @@ package pluginUtils
 import (
 	"errors"
 	"fmt"
-	"log/syslog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,11 +10,12 @@ import (
 	"time"
 
 	"github.com/greeneg/ca-certificates/configuration"
+	"github.com/greeneg/ca-certificates/logger"
 
 	"github.com/MakeNowJust/heredoc"
 )
 
-func (p PluginUtils) RunTrust(f, t string) (int, error) {
+func (p PluginUtils) RunTrust(f, t string, l logger.Logger) (int, error) {
 	var format string
 	var target string
 	switch t {
@@ -42,14 +42,14 @@ func (p PluginUtils) RunTrust(f, t string) (int, error) {
 		if cmd.ProcessState != nil {
 			exitCode = cmd.ProcessState.ExitCode()
 		}
-		fmt.Printf("ERROR: Could not run command %q: %v", cmd.Args, err)
+		l.Log(l.LvlError(), fmt.Sprintf("Could not run command %q: %v", cmd.Args, err))
 		return exitCode, err
 	}
 
 	return 0, nil
 }
 
-func (p PluginUtils) GeneratePemFile(f string) error {
+func (p PluginUtils) GeneratePemFile(f string, l logger.Logger) error {
 	// first create our heredoc header
 	header := heredoc.Doc(`
 	#
@@ -67,7 +67,7 @@ func (p PluginUtils) GeneratePemFile(f string) error {
 	// read in our new file and then prepend the header to it
 	content, err := os.ReadFile(f + ".tmp")
 	if err != nil {
-		fmt.Println("ERROR: Cannot read file: " + string(err.Error()))
+		l.Log(l.LvlError(), fmt.Sprintf("Cannot read file: %v", err))
 		return err
 	}
 
@@ -78,7 +78,7 @@ func (p PluginUtils) GeneratePemFile(f string) error {
 	// write file back out
 	err = os.WriteFile(f, fileBytes, 0644)
 	if err != nil {
-		fmt.Println("ERROR: Cannot write file: " + string(err.Error()))
+		l.Log(l.LvlError(), fmt.Sprintf("Cannot write file: %v", err))
 		return err
 	}
 
@@ -95,41 +95,44 @@ func (p PluginUtils) IsSymLink(f string) bool {
 	return false
 }
 
-func (p PluginUtils) ConfigureEtcSslCaBundlePem(f string) error {
+func (p PluginUtils) ConfigureEtcSslCaBundlePem(f string, l logger.Logger) error {
 	baseDir := filepath.Dir(f)
 
 	e, err := p.FileExists(f)
 	if err != nil {
-		fmt.Println("ERROR: Cannot check if file exists: " + string(err.Error()))
+		l.Log(l.LvlError(), fmt.Sprintf("Cannot check if file exists: %v", err))
 		return err
 	}
 
 	if !e {
 		err := os.MkdirAll(baseDir, 0755)
 		if err != nil {
+			l.Log(l.LvlError(), fmt.Sprintf("Cannot create directory: %v", err))
+
 			return err
 		}
 	}
 	err = os.Symlink("../../var/lib/ca-certificates/ca-bundle.pem", f)
 	if err != nil {
+		l.Log(l.LvlError(), fmt.Sprintf("Cannot create symlink: %v", err))
 		return err
 	}
 
 	return nil
 }
 
-func (p PluginUtils) StatInfo(f string, c configuration.Configuration) time.Time {
+func (p PluginUtils) StatInfo(f string, c configuration.Configuration, l logger.Logger) time.Time {
 	var t time.Time
 	s, err := os.Stat(f)
 	if err == nil {
 		t = s.ModTime()
 	} else {
 		if !errors.Is(err, os.ErrNotExist) {
-			fmt.Println("ERROR: Cannot stat file! " + string(err.Error()))
+			l.Log(l.LvlError(), fmt.Sprintf("Cannot stat file: %v", err))
 			if !c.Fresh {
 				os.Exit(2)
 			} else {
-				fmt.Println("NOTICE: file does not exist. 'fresh' option selected. Continuing")
+				l.Log(l.LvlNotice(), "File does not exist. 'fresh' option selected. Continuing")
 			}
 		} else if errors.Is(err, os.ErrNotExist) {
 			// set our fileTimeStamp to default
@@ -140,11 +143,11 @@ func (p PluginUtils) StatInfo(f string, c configuration.Configuration) time.Time
 	return t
 }
 
-func (p PluginUtils) CheckSymlinkTarget(f, target string) bool {
+func (p PluginUtils) CheckSymlinkTarget(f, target string, l logger.Logger) bool {
 	if p.IsSymLink(f) {
 		linkTarget, err := os.Readlink(f)
 		if err != nil {
-			fmt.Println("ERROR: Cannot read symlink: " + string(err.Error()))
+			l.Log(l.LvlError(), fmt.Sprintf("Cannot read symlink: %v", err))
 			os.Exit(2)
 		}
 		if linkTarget == target {
@@ -165,7 +168,7 @@ func (p PluginUtils) FileExists(f string) (bool, error) {
 	return false, err
 }
 
-func (p PluginUtils) FindPlugins(c configuration.Configuration, s *syslog.Writer) ([]string, error) {
+func (p PluginUtils) FindPlugins(c configuration.Configuration, l logger.Logger) ([]string, error) {
 	var plugins []string
 
 	for _, p := range c.HooksDirList {
@@ -173,55 +176,34 @@ func (p PluginUtils) FindPlugins(c configuration.Configuration, s *syslog.Writer
 		_, err := os.Stat(dir)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
-				fmt.Printf("Location %s does not exist\n", dir)
-				if c.UseSyslog {
-					s.Notice("N: Location " + dir + " does not exist. Skipping")
-				}
+				l.Log(l.LvlNotice(), fmt.Sprintf("Location %s does not exist. Skipping", dir))
 				continue
 			}
-			fmt.Println(fmt.Errorf("ERROR: %w", err))
-			if c.UseSyslog {
-				s.Err("E: " + string(err.Error()))
-			}
+			l.Log(l.LvlError(), fmt.Sprintf("Cannot stat directory: %v", err))
 			continue
 		}
-		fmt.Printf("Checking location %s for plugins\n", dir)
-		if c.UseSyslog {
-			s.Info("I: Checking location " + dir + " for plugins")
-		}
+		l.Log(l.LvlInfo(), fmt.Sprintf("Checking location %s for plugins", dir))
 		matches, err := filepath.Glob(filepath.Join(dir, "*.plugin"))
 		if err != nil {
-			fmt.Println(fmt.Errorf("ERROR: %w", err))
-			if c.UseSyslog {
-				s.Err("E: " + string(err.Error()))
-			}
+			l.Log(l.LvlError(), fmt.Sprintf("Cannot glob directory: %v", err))
 			continue
 		}
 		if len(matches) > 0 {
-			fmt.Printf("Found: %v", matches)
-			if c.UseSyslog {
-				s.Info("I: Found " + fmt.Sprintf("%v", matches))
-			}
+			l.Log(l.LvlInfo(), fmt.Sprintf("Found: %v", matches))
 			plugins = append(plugins, matches...)
 		} else {
-			fmt.Printf("No plugins found in %s\n", dir)
-			if c.UseSyslog {
-				s.Info("I: No plugins in " + dir)
-			}
+			l.Log(l.LvlInfo(), fmt.Sprintf("No plugins found in %s", dir))
 		}
 	}
 
 	return plugins, nil
 }
 
-func (p PluginUtils) RunPlugins(plugins []string, c configuration.Configuration, s *syslog.Writer) {
+func (p PluginUtils) RunPlugins(plugins []string, c configuration.Configuration, l logger.Logger) {
 	// convert c to json once and pass it to each plugin via stdin
 	jsonStr, err := c.ToJson(c)
 	if err != nil {
-		fmt.Println(fmt.Errorf("ERROR: %w", err))
-		if c.UseSyslog && s != nil {
-			s.Err("E: " + string(err.Error()))
-		}
+		l.Log(l.LvlError(), fmt.Sprintf("%v", err))
 		// swallow the error. If the plugin dies, keep going with the next one.
 		// The plugin should log its own errors and we don't want to stop all
 		// plugins if one has an error with the configuration
@@ -229,7 +211,7 @@ func (p PluginUtils) RunPlugins(plugins []string, c configuration.Configuration,
 	}
 
 	for _, plugin := range plugins {
-		fmt.Printf("plugin: %s\n", plugin)
+		l.Log(l.LvlInfo(), fmt.Sprintf("plugin: %s", plugin))
 		cmd := exec.Command(plugin)
 		cmd.Stdin = strings.NewReader(jsonStr)
 		cmd.Stdout = os.Stdout
@@ -240,10 +222,7 @@ func (p PluginUtils) RunPlugins(plugins []string, c configuration.Configuration,
 			if cmd.ProcessState != nil {
 				exitCode = cmd.ProcessState.ExitCode()
 			}
-			fmt.Printf("ERROR: Could not run plugin %s: %v. Exit code: %d\n", plugin, err, exitCode)
-			if c.UseSyslog && s != nil {
-				s.Err("E: Could not run plugin " + plugin + ": " + string(err.Error()) + ". Exit code: " + fmt.Sprintf("%d", exitCode))
-			}
+			l.Log(l.LvlError(), fmt.Sprintf("Could not run plugin %s: %v. Exit code: %d", plugin, err, exitCode))
 			continue
 		}
 	}
@@ -254,4 +233,14 @@ func (p PluginUtils) EnsureVarEndsWithSlash(v string) string {
 		return v + "/"
 	}
 	return v
+}
+
+func (p PluginUtils) CheckRequiredTools() error {
+	for _, tool := range p.RequiredTools {
+		_, err := exec.LookPath(tool)
+		if err != nil {
+			return fmt.Errorf("required tool %s not found in PATH", tool)
+		}
+	}
+	return nil
 }

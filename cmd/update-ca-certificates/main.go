@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
-	"log/syslog"
 	"os"
 	"strings"
 	"syscall"
 
 	"github.com/greeneg/ca-certificates/configuration"
+	"github.com/greeneg/ca-certificates/logger"
 	"github.com/greeneg/ca-certificates/pluginUtils"
 )
 
@@ -89,112 +89,93 @@ func main() {
 	c := configuration.NewConfiguration()
 	p := pluginUtils.NewPluginUtils()
 
-	// lets deal with our flags
-	c, err := ProcessArgs(os.Args, c, &p)
+	logger := logger.NewLogger(c, appName)
+
+	// first, check that we have the required tools used by our plugins
+	logger.Log(logger.LvlInfo(), "Checking for required tools")
+	err := p.CheckRequiredTools()
 	if err != nil {
-		e := fmt.Errorf("ERROR: %w", err)
-		fmt.Println(e)
+		e := fmt.Errorf("%w", err)
+		logger.Log(logger.LvlError(), e.Error())
+		os.Exit(1)
+	}
+
+	// lets deal with our flags
+	logger.Log(logger.LvlInfo(), "Processing command line arguments")
+	c, err = ProcessArgs(os.Args, c, &p)
+	if err != nil {
+		e := fmt.Errorf("%w", err)
+		logger.Log(logger.LvlError(), e.Error())
 		os.Exit(1)
 	}
 
 	// check that we're running as root
+	logger.Log(logger.LvlInfo(), "Checking if application is running as root")
 	if !isRoot() {
-		fmt.Println(fmt.Errorf("ERROR: %s", "Application not running as root. Exiting"))
+		errMsg := fmt.Errorf("%s", "Application not running as root. Exiting")
+		logger.Log(logger.LvlError(), errMsg.Error())
 		os.Exit(2)
 	}
 
-	// if we want to use syslog, create our logger
-	var sysLog *syslog.Writer
-	if c.UseSyslog {
-		var facility syslog.Priority
-		var loglevel syslog.Priority
-		switch c.DefaultSyslogLevel {
-		case "INFO":
-			loglevel = syslog.LOG_INFO
-		case "NOTICE":
-			loglevel = syslog.LOG_NOTICE
-		case "WARNING":
-			loglevel = syslog.LOG_WARNING
-		default:
-			loglevel = syslog.LOG_INFO
-		}
-		switch c.SyslogFacility {
-		case "DAEMON":
-			facility = syslog.LOG_DAEMON
-		default:
-			facility = syslog.LOG_DAEMON
-		}
-		sysLog, err = syslog.New(loglevel|facility, appName)
-		if err != nil {
-			fmt.Println(fmt.Errorf("ERROR: %w", err))
-		}
-	}
-
 	// now that our args are parsed, set our umask
+	logger.Log(logger.LvlInfo(), "Setting umask to 0022")
 	oldUmask := syscall.Umask(0x022) // owner write, all others read
 
 	// Create a lock file if the system is doing a transactional update to avoid running any plugins, which can
 	// cause RPM transactional scripts to fail
+	logger.Log(logger.LvlInfo(), "Checking for transactional update environment variable")
 	v, exists := os.LookupEnv("TRANSACTIONAL_UPDATE")
 	if exists {
 		switch v {
 		case "true", "yes", "1":
 			if c.Verbose {
-				fmt.Println("transactional update in progress, not running any plugins")
-				if c.UseSyslog && sysLog != nil {
-					sysLog.Info("I: Transactional update in progress. not running any plugins.")
-				}
+				logger.Log(logger.LvlInfo(), "transactional update in progress, not running any plugins")
 			}
 			err := os.WriteFile("/etc/pki/trust/.updated", []byte(""), 0644)
 			if err != nil {
-				fmt.Println(fmt.Errorf("ERROR: %w", err))
-				if c.UseSyslog && sysLog != nil {
-					sysLog.Err("E: " + string(err.Error()))
-				}
+				errMsg := fmt.Errorf("%w", err)
+				logger.Log(logger.LvlError(), errMsg.Error())
 				os.Exit(1)
 			}
 			os.Exit(0)
 		default:
 			if c.Verbose {
-				fmt.Println("transactional updates are not running. Continuing")
-				if c.UseSyslog && sysLog != nil {
-					sysLog.Info("I: Transactional updates are not running. Continuing")
-				}
+				logger.Log(logger.LvlInfo(), "transactional updates are not running. Continuing")
 			}
 		}
 	}
 	// check if our update lock file exists
+	logger.Log(logger.LvlInfo(), "Checking for transactional update lock file")
 	fileExists, err := p.FileExists("/etc/pki/trust/.updated")
 	if err != nil {
-		fmt.Println(fmt.Errorf("ERROR: %w", err))
-		if c.UseSyslog && sysLog != nil {
-			sysLog.Err("E: " + string(err.Error()))
-		}
+		errMsg := fmt.Errorf("%w", err)
+		logger.Log(logger.LvlError(), errMsg.Error())
 		os.Exit(1)
 	}
 	if fileExists {
 		err = os.Remove("/etc/pki/trust/.updated")
 		if err != nil {
-			fmt.Println("ERROR: %w", err)
-			if c.UseSyslog && sysLog != nil {
-				sysLog.Err("E: " + string(err.Error()))
-			}
+			errMsg := fmt.Errorf("%w", err)
+			logger.Log(logger.LvlError(), errMsg.Error())
 			os.Exit(1)
 		}
 	}
 
 	// find all installed plugins
-	plugins, err := p.FindPlugins(c, sysLog)
+	logger.Log(logger.LvlInfo(), "Finding plugins")
+	plugins, err := p.FindPlugins(c, logger)
 	if err != nil {
-		fmt.Println(fmt.Errorf("ERROR: %w", err))
-		if c.UseSyslog && sysLog != nil {
-			sysLog.Err("E: " + string(err.Error()))
-		}
+		errMsg := fmt.Errorf("%w", err)
+		logger.Log(logger.LvlError(), errMsg.Error())
 		os.Exit(1)
 	}
 
 	// now execute the plugins
-	p.RunPlugins(plugins, c, sysLog)
+	if len(plugins) > 0 {
+		logger.Log(logger.LvlInfo(), "Running plugins")
+		p.RunPlugins(plugins, c, logger)
+	}
 
+	logger.Log(logger.LvlInfo(), "Finished running plugins and restoring umask")
 	syscall.Umask(oldUmask) // restore our previous umask
 }
